@@ -1,0 +1,61 @@
+RAG Implementation Patterns and Best Practices
+
+Technical Reference Document
+
+1. Basic RAG Architecture
+
+The simplest RAG implementation follows a linear pipeline: receive a query, embed it into a vector, retrieve the top-k most similar chunks from a vector database, and pass those chunks as context to an LLM for answer generation. This straightforward approach works well for simple question-answering use cases where the query is clear and the relevant information exists in a single document.
+
+Example workflow: User asks "What is our data retention policy?" The system embeds this query, finds the most similar chunks from uploaded policy documents, and the LLM generates an answer based on the retrieved text.
+
+2. Multi-Query Retrieval
+
+Multi-query retrieval improves recall by generating multiple variations of the user's original question and retrieving documents for each variant. This addresses the problem where a user's phrasing may not match the terminology used in the documents.
+
+For example, if a user asks "How do we protect customer data?" the system might also query for "data privacy measures" and "customer information security." The results from all queries are merged and deduplicated before being passed to the LLM.
+
+3. Reciprocal Rank Fusion (RRF)
+
+RRF is a method for combining ranked lists from multiple retrieval sources. Each document receives a score based on its rank position across all queries, with the formula: score = sum of 1/(k + rank_position) for each list where the document appears. A common k value is 60. This approach is particularly useful in multi-query retrieval or when combining results from different retrieval methods such as keyword search and vector search.
+
+4. LLM Reranking
+
+After initial retrieval, a reranking step uses an LLM to score each retrieved chunk based on its relevance to the original query. This provides more accurate relevance scoring than embedding similarity alone. The reranker evaluates semantic relevance, considering whether the chunk actually contains information that answers the question.
+
+Implementation: For each retrieved chunk, prompt the LLM to output a relevance score from 0 to 10. Filter out chunks below a threshold (typically 5) and reorder the remaining chunks by score. This typically improves answer quality by 15-25% compared to vector similarity alone.
+
+5. Self-Reflection and Iteration
+
+Self-reflection adds an evaluation loop to the RAG pipeline. After generating an initial answer, the system evaluates its own output for quality and completeness. If the answer is insufficient, the system reformulates the query and retrieves additional information.
+
+The self-reflection process: generate answer, evaluate answer for faithfulness and completeness, identify knowledge gaps, reformulate query to address gaps, retrieve additional information, and generate a revised answer. This loop continues until the answer meets quality criteria or a maximum number of iterations is reached.
+
+6. Document Chunking Strategies
+
+Chunking strategy significantly impacts retrieval quality. Common approaches include:
+
+Fixed-size chunking with overlap: Split documents into chunks of a fixed token size with overlap between chunks. Typical chunk sizes range from 256 to 1000 tokens with 10-20% overlap. This is simple but may split sentences or paragraphs in the middle.
+
+Semantic chunking: Split documents at natural boundaries such as paragraphs, sections, or sentences. This preserves semantic units but may result in uneven chunk sizes.
+
+Agentic chunking: Use an LLM to identify and extract meaningful sections from documents. This produces the highest quality chunks but is computationally expensive.
+
+7. Embedding Model Selection
+
+The choice of embedding model affects retrieval quality. For general-purpose use, models like nomic-embed-text provide good performance while being lightweight enough to run locally. For domain-specific applications, fine-tuned embedding models can significantly improve retrieval accuracy.
+
+Considerations when selecting an embedding model: embedding dimension size affects storage and search speed, maximum input token length determines how much text can be embedded in a single vector, and language support is important for multilingual applications.
+
+8. Evaluation Metrics
+
+Key metrics for evaluating RAG system performance:
+
+Faithfulness: What percentage of claims in the generated answer are supported by the retrieved context. This is the most important metric for enterprise use.
+
+Answer Relevance: How well the generated answer addresses the user's question. A high relevance score means the answer is on-topic and complete.
+
+Context Precision: The proportion of retrieved chunks that are actually relevant to the query. High precision means efficient retrieval.
+
+Context Recall: The proportion of relevant information in the knowledge base that was successfully retrieved. High recall means comprehensive coverage.
+
+The LLM-as-Judge evaluation approach uses an LLM to score each of these dimensions on a scale of 1 to 5, providing automated quality assessment at scale.

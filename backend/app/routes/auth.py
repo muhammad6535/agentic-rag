@@ -56,7 +56,9 @@ async def register(request: RegisterRequest, db: AsyncSession = Depends(get_db))
 
 @router.post("/login", response_model=TokenResponse)
 async def login(request: LoginRequest, db: AsyncSession = Depends(get_db)):
-    stmt = select(User).where(User.username == request.username)
+    stmt = select(User).where(
+        (User.username == request.username) | (User.email == request.username)
+    )
     result = await db.execute(stmt)
     user = result.scalar_one_or_none()
 
